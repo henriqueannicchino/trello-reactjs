@@ -6,7 +6,11 @@ import Dropdown from "react-bootstrap/Dropdown";
 import ConfirmModal from "../Common/ConfirmModal";
 import Form from "react-bootstrap/Form";
 import { useEffect, useRef, useState } from "react";
-import { MODAL_ACTION_CLOSE, MODAL_ACTION_CONFIRM } from "../../utilities/constant";
+import {
+  MODAL_ACTION_CLOSE,
+  MODAL_ACTION_CONFIRM,
+} from "../../utilities/constant";
+import { v4 as uuidv4 } from "uuid";
 
 const Column = (props) => {
   const { column, onCardDrop, onUpdateColumn } = props;
@@ -18,26 +22,36 @@ const Column = (props) => {
   const [isFirstClick, setIsFirstClick] = useState(true);
   const inputRef = useRef(null);
 
+  const [isShowAddNewCard, setIsShowAddNewCard] = useState(false);
+  const [valueTextArea, setValueTextArea] = useState("");
+  const textAreaRef = useRef(null);
+
+  useEffect(() => {
+    if(isShowAddNewCard === true && textAreaRef && textAreaRef.current) {
+        textAreaRef.current.focus();
+    }
+  }, [isShowAddNewCard])
+
   useEffect(() => {
     if (column && column.title) {
-        setTitleColumn(column.title);
+      setTitleColumn(column.title);
     }
-  }, [column])
+  }, [column]);
   const toggleModal = () => {
     setShowModalDelete(!isShowModalDelete);
   };
 
   const onModalAction = (type) => {
     if (type === MODAL_ACTION_CLOSE) {
-        //do nothing
+      //do nothing
     }
     if (type === MODAL_ACTION_CONFIRM) {
-        //remove a column
-        const newColumn = {
-            ...column,
-            _destroy: true
-        }
-        onUpdateColumn(newColumn)
+      //remove a column
+      const newColumn = {
+        ...column,
+        _destroy: true,
+      };
+      onUpdateColumn(newColumn);
     }
     toggleModal();
   };
@@ -45,23 +59,49 @@ const Column = (props) => {
   const selectAllText = (event) => {
     setIsFirstClick(false);
 
-    if(isFirstClick) {
-        event.target.select();
+    if (isFirstClick) {
+      event.target.select();
     } else {
-        inputRef.current.setSelectionRange(titleColumn.length, titleColumn.length);
+      inputRef.current.setSelectionRange(
+        titleColumn.length,
+        titleColumn.length
+      );
     }
-    
-  }
+  };
 
   const handleClickOutside = () => {
     //do something...
     setIsFirstClick(true);
     const newColumn = {
-        ...column,
-        title: titleColumn,
-        _destroy: false
+      ...column,
+      title: titleColumn,
+      _destroy: false,
+    };
+    onUpdateColumn(newColumn);
+  };
+
+  const handleAddNewCard = () => {
+    //validate
+    if (!valueTextArea) {
+        textAreaRef.current.focus();
+        return;
     }
-    onUpdateColumn(newColumn)
+
+    const newCard = {
+        id: uuidv4(),
+        boardId: column.boardId,
+        columnId: column.id,
+        title: valueTextArea,
+        image: null
+    }
+
+    let newColumn = {...column};
+    newColumn.cards = [...newColumn.cards, newCard];
+    newColumn.cardOrder = newColumn.cards.map(card => card.id);
+
+    onUpdateColumn(newColumn);
+    setValueTextArea("");
+    setIsShowAddNewCard(false);
   }
 
   return (
@@ -69,17 +109,17 @@ const Column = (props) => {
       <div className="column">
         <header className="column-drag-handle">
           <div className="column-title">
-            <Form.Control 
-                size={"sm"}
-                type="text"
-                value={titleColumn}
-                className="customize-input-column"
-                onClick={selectAllText}
-                onChange={(event) => setTitleColumn(event.target.value)}
-                spellCheck="false"
-                onBlur={handleClickOutside}
-                onMouseDown={(e) => e.preventDefault()}
-                ref={inputRef}
+            <Form.Control
+              size={"sm"}
+              type="text"
+              value={titleColumn}
+              className="customize-input-column"
+              onClick={selectAllText}
+              onChange={(event) => setTitleColumn(event.target.value)}
+              spellCheck="false"
+              onBlur={handleClickOutside}
+              onMouseDown={(e) => e.preventDefault()}
+              ref={inputRef}
             />
           </div>
           <div className="column-dropdown">
@@ -92,7 +132,9 @@ const Column = (props) => {
 
               <Dropdown.Menu>
                 <Dropdown.Item href="#">Add card...</Dropdown.Item>
-                <Dropdown.Item onClick={toggleModal}>Remove this column...</Dropdown.Item>
+                <Dropdown.Item onClick={toggleModal}>
+                  Remove this column...
+                </Dropdown.Item>
               </Dropdown.Menu>
             </Dropdown>
           </div>
@@ -121,12 +163,44 @@ const Column = (props) => {
                 );
               })}
           </Container>
+
+          {isShowAddNewCard && (
+            <div className="add-new-card">
+              <textarea
+                rows="2"
+                className="form-control"
+                placeholder="Enter a title for this card..."
+                ref={textAreaRef}
+                value={valueTextArea}
+                onChange={(event) => setValueTextArea(event.target.value)}
+              ></textarea>
+              <div className="group-btn">
+                <button
+                    className="btn btn-primary"
+                    onClick={() => handleAddNewCard()}
+                    >Add card</button>
+                <i
+                  className="fa fa-times icon"
+                  onClick={() => setIsShowAddNewCard(false)}
+                ></i>
+              </div>
+            </div>
+          )}
         </div>
-        <footer>
-          <div className="footer-action">
-            <i className="fa fa-plus"></i> Add another card
-          </div>
-        </footer>
+        {!isShowAddNewCard && (
+          <footer>
+            <div
+              className="footer-action"
+              onClick={() => setIsShowAddNewCard(true)}
+            >
+              <i
+                className="fa fa-plus icon"
+                onClick={() => setIsShowAddNewCard()}
+              ></i>{" "}
+              Add another card
+            </div>
+          </footer>
+        )}
       </div>
       <ConfirmModal
         show={isShowModalDelete}
