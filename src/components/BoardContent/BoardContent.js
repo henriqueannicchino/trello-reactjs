@@ -1,15 +1,26 @@
 import "./BoardContent.scss";
 import Column from "../Column/Column";
 import { initData } from "../../actions/initData";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import _ from "lodash";
 import { mapOrder } from "../../utilities/sorts";
 import { Container, Draggable } from "react-smooth-dnd";
-import { applyDrag } from '../../utilities/dragDrop';
+import { applyDrag } from "../../utilities/dragDrop";
+import { v4 as uuidv4 } from 'uuid';
 
 const BoardContent = () => {
   const [board, setBoard] = useState({});
   const [columns, setColumns] = useState([]);
+
+  const [isShowAddList, setIsShowAddList] = useState(false);
+  const inputRef = useRef(null);
+  const [valueInput, setValueInput] = useState("");
+
+  useEffect(() => {
+    if(isShowAddList === true && inputRef && inputRef.current) {
+        inputRef.current.focus();
+    }
+  }, [isShowAddList])
 
   useEffect(() => {
     const boardInitData = initData.boards.find((item) => item.id === "board-1");
@@ -27,28 +38,28 @@ const BoardContent = () => {
   const onColumnDrop = (dropResult) => {
     let newColumns = [...columns];
     newColumns = applyDrag(newColumns, dropResult);
-    
+
     let newBoard = { ...board };
-    newBoard.columnOrder = newColumns.map(column => column.id);
+    newBoard.columnOrder = newColumns.map((column) => column.id);
     newBoard.columns = newColumns;
 
     setColumns(newColumns);
     setBoard(newBoard);
-  }
+  };
 
   const onCardDrop = (dropResult, columnId) => {
-    if(dropResult.removedIndex !== null || dropResult.addedIndex !== null) {
-        console.log(">>> inside onCardDrop: ", dropResult, 'columnId', columnId);
-    
-        let  newColumns = [...columns];
+    if (dropResult.removedIndex !== null || dropResult.addedIndex !== null) {
+      console.log(">>> inside onCardDrop: ", dropResult, "columnId", columnId);
 
-        let currentColumn = newColumns.find(column => column.id === columnId);
-        currentColumn.cards = applyDrag(currentColumn.cards, dropResult);
-        currentColumn.cardOrder = currentColumn.cards.map(card => card.id);
+      let newColumns = [...columns];
 
-        setColumns(newColumns);
+      let currentColumn = newColumns.find((column) => column.id === columnId);
+      currentColumn.cards = applyDrag(currentColumn.cards, dropResult);
+      currentColumn.cardOrder = currentColumn.cards.map((card) => card.id);
+
+      setColumns(newColumns);
     }
-  }
+  };
 
   if (_.isEmpty(board)) {
     return (
@@ -58,12 +69,33 @@ const BoardContent = () => {
     );
   }
 
+  const handleAddList = () => {
+    if(!valueInput) {
+        if(inputRef && inputRef.current)
+            inputRef.current.focus();
+        return;
+    }
+
+    // update board columns
+    const _columns = _.cloneDeep(columns);
+    _columns.push({
+        id: uuidv4(),
+        boardId: board.id,
+        title: valueInput,
+        cards: []
+    });
+
+    setColumns(_columns);
+    setValueInput("");
+    inputRef.current.focus();
+  }
+
   return (
     <div className="board-columns">
       <Container
         orientation="horizontal"
         onDrop={onColumnDrop}
-        getChildPayload={index => columns[index]}
+        getChildPayload={(index) => columns[index]}
         dragHandleSelector=".column-drag-handle"
         dropPlaceholder={{
           animationDuration: 150,
@@ -76,17 +108,32 @@ const BoardContent = () => {
           columns.map((column, index) => {
             return (
               <Draggable key={column.id}>
-                <Column 
-                    column={column} 
-                    onCardDrop={onCardDrop}
-                />
+                <Column column={column} onCardDrop={onCardDrop} />
               </Draggable>
             );
           })}
 
-          <div className="add-new-column">
+        {!isShowAddList ? (
+          <div className="add-new-column" onClick={() => setIsShowAddList(true)}>
             <i className="fa fa-plus icon"></i> Add another column
           </div>
+        ) : (
+          <div className="content-add-column">
+            <input 
+                type="text" 
+                className="form-control" 
+                ref={inputRef} 
+                value={valueInput}
+                onChange={(event) => setValueInput(event.target.value)}
+            />
+            <div className="group-btn">
+              <button className="btn btn-success" 
+                onClick={() => handleAddList()}
+              >Add list</button>
+              <i className="fa fa-times icon" onClick={() => setIsShowAddList(false)}></i>
+            </div>
+          </div>
+        )}
       </Container>
     </div>
   );
